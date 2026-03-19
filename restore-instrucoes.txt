@@ -1,0 +1,2 @@
+Backup completo do sistema Bolos da Gal.
+Restaure pela tela backup.php.

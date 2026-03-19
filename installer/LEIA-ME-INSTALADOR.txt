@@ -1,0 +1,24 @@
+INSTALADOR DO SISTEMA BOLOS DA GAL
+
+1. Antes de instalar
+- Instale o PHP no Windows.
+- Habilite no php.ini: pdo_mysql e zip.
+- Instale o MySQL Server no Windows.
+
+2. Durante a instalacao
+- Informe o caminho do php.exe.
+- Informe os dados do MySQL.
+- Se quiser, informe o caminho do mysql.exe para importar o banco automaticamente.
+
+3. Depois da instalacao
+- O sistema sera instalado em C:\BolosDaGal
+- O backup ficara em C:\BolosDaGal\backup
+- Use o atalho "Bolos da Gal" para iniciar o sistema
+
+4. Se o banco nao for importado automaticamente
+- Abra o MySQL Workbench
+- Execute o arquivo C:\BolosDaGal\database.sql
+
+5. Para recompilar o instalador
+- Abra o arquivo installer\BolosDaGal.iss no Inno Setup Compiler
+- Clique em Build
