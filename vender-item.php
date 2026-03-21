@@ -15,6 +15,7 @@ $itens = $stmt->fetchAll();
 
 $carrinho = $_SESSION['carrinho_venda'] ?? [];
 $totalGeral = 0.0;
+$dataVendaPadrao = date('Y-m-d');
 
 foreach ($carrinho as $itemCarrinho) {
     $totalGeral += (float) $itemCarrinho['valor_total'];
@@ -331,7 +332,7 @@ foreach ($carrinho as $itemCarrinho) {
 
                                 <div>
                                     <label for="data_venda">Data da venda</label>
-                                    <input type="date" id="data_venda" name="data_venda">
+                                    <input type="date" id="data_venda" name="data_venda" value="<?= htmlspecialchars($dataVendaPadrao, ENT_QUOTES, 'UTF-8') ?>">
                                 </div>
 
                                 <div id="dinheiro_fields" class="payment-extra">

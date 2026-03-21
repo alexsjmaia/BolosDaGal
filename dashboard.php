@@ -59,6 +59,12 @@
             margin-top: 28px;
         }
 
+        @media (min-width: 760px) {
+            .menu {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         .menu-item {
             display: block;
             padding: 20px 22px;
@@ -117,25 +123,33 @@
         <p class="lead">Bem-vindo, <strong><?= htmlspecialchars($_SESSION['usuario'], ENT_QUOTES, 'UTF-8') ?></strong>. Escolha uma opcao abaixo.</p>
 
         <section class="menu">
-            <a class="menu-item" href="cadastrar-item.php">
+            <a class="menu-item" href="vender-item.php">
                 <span class="menu-number">1</span>
+                <span class="menu-text">Vender Item</span>
+            </a>
+            <a class="menu-item" href="cadastrar-item.php">
+                <span class="menu-number">2</span>
                 <span class="menu-text">Cadastrar Item</span>
             </a>
             <a class="menu-item" href="alterar-item.php">
-                <span class="menu-number">2</span>
+                <span class="menu-number">3</span>
                 <span class="menu-text">Alterar Item</span>
             </a>
-            <a class="menu-item" href="vender-item.php">
-                <span class="menu-number">3</span>
-                <span class="menu-text">Vender Item</span>
+            <a class="menu-item" href="listar-itens.php">
+                <span class="menu-number">4</span>
+                <span class="menu-text">Listar Itens Cadastrados</span>
             </a>
             <a class="menu-item" href="relatorio-itens-vendidos.php">
-                <span class="menu-number">4</span>
+                <span class="menu-number">5</span>
                 <span class="menu-text">Itens Mais Vendidos</span>
             </a>
-            <a class="menu-item" href="listar-itens.php">
-                <span class="menu-number">5</span>
-                <span class="menu-text">Listar Itens Cadastrados</span>
+            <a class="menu-item" href="lancar-despesa.php">
+                <span class="menu-number">6</span>
+                <span class="menu-text">Lancar Despesa</span>
+            </a>
+            <a class="menu-item" href="listar-despesas.php">
+                <span class="menu-number">7</span>
+                <span class="menu-text">Listar Despesas</span>
             </a>
         </section>
 

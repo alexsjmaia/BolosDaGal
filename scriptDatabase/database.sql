@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS bolosdagal
+﻿CREATE DATABASE IF NOT EXISTS bolosdagal
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS vendas (
     codigo_produto VARCHAR(50) NOT NULL,
     descricao_produto VARCHAR(150) NOT NULL,
     quantidade DECIMAL(10,2) NOT NULL,
+    preco_custo_unitario DECIMAL(10,2) NOT NULL,
     preco_unitario DECIMAL(10,2) NOT NULL,
     valor_total DECIMAL(10,2) NOT NULL,
     forma_pagamento VARCHAR(30) NOT NULL,

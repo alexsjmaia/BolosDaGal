@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require __DIR__ . '/auth.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: vender-item.php');
@@ -23,7 +23,7 @@ if (!is_numeric($quantidade) || (float) $quantidade <= 0) {
 }
 
 $stmt = $pdo->prepare(
-    'SELECT id, codigo_produto, nome_produto, preco_venda
+    'SELECT id, codigo_produto, nome_produto, preco_custo, preco_venda
      FROM itens
      WHERE id = :id
      LIMIT 1'
@@ -38,6 +38,7 @@ if (!$item) {
 }
 
 $quantidadeValor = (float) $quantidade;
+$precoCustoUnitario = (float) $item['preco_custo'];
 $precoUnitario = (float) $item['preco_venda'];
 
 if (!isset($_SESSION['carrinho_venda'])) {
@@ -54,6 +55,7 @@ if (isset($_SESSION['carrinho_venda'][$itemId])) {
         'codigo_produto' => $item['codigo_produto'],
         'descricao_produto' => $item['nome_produto'],
         'quantidade' => $quantidadeValor,
+        'preco_custo_unitario' => $precoCustoUnitario,
         'preco_unitario' => $precoUnitario,
         'valor_total' => $quantidadeValor * $precoUnitario,
     ];

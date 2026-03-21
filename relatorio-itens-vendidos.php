@@ -2,14 +2,16 @@
 require __DIR__ . '/auth.php';
 require __DIR__ . '/db.php';
 
-$dataInicial = trim($_GET['data_inicial'] ?? '');
-$dataFinal = trim($_GET['data_final'] ?? '');
+$dataInicial = trim($_GET['data_inicial'] ?? date('Y-m-d'));
+$dataFinal = trim($_GET['data_final'] ?? date('Y-m-d'));
 $erro = '';
 $registros = [];
 $totais = [
     'custo' => 0.0,
     'venda' => 0.0,
     'lucro' => 0.0,
+    'despesas' => 0.0,
+    'saldo' => 0.0,
 ];
 
 function formatarDataExtenso(string $data): string
@@ -45,12 +47,11 @@ if ($dataInicial !== '' || $dataFinal !== '') {
                 v.codigo_produto,
                 v.descricao_produto,
                 SUM(v.quantidade) AS qtd_vendida,
-                SUM(v.quantidade * i.preco_custo) AS valor_total_custo,
+                SUM(v.quantidade * COALESCE(v.preco_custo_unitario, 0)) AS valor_total_custo,
                 SUM(v.valor_total) AS valor_total_venda,
-                SUM(v.valor_total - (v.quantidade * i.preco_custo)) AS lucro_bruto,
+                SUM(v.valor_total - (v.quantidade * COALESCE(v.preco_custo_unitario, 0))) AS lucro_bruto,
                 GROUP_CONCAT(DISTINCT NULLIF(v.observacao, "") SEPARATOR " | ") AS observacao
              FROM vendas v
-             INNER JOIN itens i ON i.id = v.item_id
              WHERE v.data_hora_venda >= :data_inicial
                AND v.data_hora_venda < DATE_ADD(:data_final, INTERVAL 1 DAY)
              GROUP BY v.codigo_produto, v.descricao_produto
@@ -69,6 +70,21 @@ if ($dataInicial !== '' || $dataFinal !== '') {
             $totais['venda'] += (float) $registro['valor_total_venda'];
             $totais['lucro'] += (float) $registro['lucro_bruto'];
         }
+
+        $stmtDespesas = $pdo->prepare(
+            'SELECT COALESCE(SUM(valor_despesa), 0) AS total_despesas
+             FROM despesas
+             WHERE data_despesa >= :data_inicial
+               AND data_despesa <= :data_final'
+        );
+
+        $stmtDespesas->execute([
+            'data_inicial' => $dataInicial,
+            'data_final' => $dataFinal,
+        ]);
+
+        $totais['despesas'] = (float) $stmtDespesas->fetchColumn();
+        $totais['saldo'] = $totais['venda'] - $totais['despesas'];
     }
 }
 ?>
@@ -188,6 +204,11 @@ if ($dataInicial !== '' || $dataFinal !== '') {
             border-radius: 12px;
             background: var(--error-bg);
             color: var(--error-text);
+        }
+
+        .negative {
+            color: var(--error-text);
+            font-weight: bold;
         }
 
         .subtitle {
@@ -326,6 +347,16 @@ if ($dataInicial !== '' || $dataFinal !== '') {
                                     <td class="money">R$ <?= htmlspecialchars(number_format($totais['venda'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                     <td class="money">R$ <?= htmlspecialchars(number_format($totais['lucro'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
+                                <tr>
+                                    <td colspan="5">Total das despesas do periodo</td>
+                                    <td class="money">R$ <?= htmlspecialchars(number_format($totais['despesas'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="5">Saldo do periodo (faturamento - despesas)</td>
+                                    <td class="money<?= $totais['saldo'] < 0 ? ' negative' : '' ?>">R$ <?= htmlspecialchars(number_format($totais['saldo'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
+                                    <td></td>
+                                </tr>
                             </tfoot>
                         </table>
                     </div>
@@ -338,3 +369,5 @@ if ($dataInicial !== '' || $dataFinal !== '') {
 </body>
 <?php renderIdleLogoutScript(); ?>
 </html>
+
+

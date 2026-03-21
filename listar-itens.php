@@ -2,6 +2,26 @@
 require __DIR__ . '/auth.php';
 require __DIR__ . '/db.php';
 
+$ordenacoesPermitidas = [
+    'codigo_produto' => 'codigo_produto',
+    'nome_produto' => 'nome_produto',
+    'preco_custo' => 'preco_custo',
+    'preco_venda' => 'preco_venda',
+    'lucro_bruto' => 'lucro_bruto',
+    'markup' => 'markup',
+];
+
+$ordenarPor = $_GET['ordenar_por'] ?? 'lucro_bruto';
+$direcao = strtolower($_GET['direcao'] ?? 'desc');
+
+if (!isset($ordenacoesPermitidas[$ordenarPor])) {
+    $ordenarPor = 'lucro_bruto';
+}
+
+if ($direcao !== 'asc' && $direcao !== 'desc') {
+    $direcao = 'desc';
+}
+
 $stmt = $pdo->query(
     'SELECT
         codigo_produto,
@@ -14,9 +34,29 @@ $stmt = $pdo->query(
             ELSE 0
         END AS markup
      FROM itens
-     ORDER BY lucro_bruto DESC, nome_produto ASC'
+     ORDER BY ' . $ordenacoesPermitidas[$ordenarPor] . ' ' . strtoupper($direcao) . ', nome_produto ASC'
 );
 $itens = $stmt->fetchAll();
+
+function linkOrdenacao(string $colunaAtual, string $ordenarPor, string $direcao): string
+{
+    $novaDirecao = 'asc';
+
+    if ($colunaAtual === $ordenarPor && $direcao === 'asc') {
+        $novaDirecao = 'desc';
+    }
+
+    return 'listar-itens.php?ordenar_por=' . urlencode($colunaAtual) . '&direcao=' . urlencode($novaDirecao);
+}
+
+function indicadorOrdenacao(string $colunaAtual, string $ordenarPor, string $direcao): string
+{
+    if ($colunaAtual !== $ordenarPor) {
+        return '';
+    }
+
+    return $direcao === 'asc' ? ' ▲' : ' ▼';
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -94,6 +134,20 @@ $itens = $stmt->fetchAll();
             cursor: pointer;
         }
 
+        .sort-info {
+            margin-bottom: 18px;
+            color: var(--muted);
+        }
+
+        .sort-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .sort-link:hover {
+            text-decoration: underline;
+        }
+
         .table-wrap {
             overflow-x: auto;
         }
@@ -126,6 +180,7 @@ $itens = $stmt->fetchAll();
         <section class="card">
             <h1>Listar Itens Cadastrados</h1>
             <p class="lead">Veja abaixo os itens cadastrados com preco de custo, preco de venda e markup.</p>
+            <p class="sort-info">Clique no titulo de qualquer coluna para organizar a visualizacao.</p>
 
             <div class="actions">
                 <a class="button" href="dashboard.php">Voltar ao menu</a>
@@ -136,12 +191,12 @@ $itens = $stmt->fetchAll();
                     <table>
                         <thead>
                             <tr>
-                                <th>Codigo</th>
-                                <th>Descricao</th>
-                                <th>Preco de custo</th>
-                                <th>Preco de venda</th>
-                                <th>Lucro bruto</th>
-                                <th>Markup</th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('codigo_produto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Codigo<?= htmlspecialchars(indicadorOrdenacao('codigo_produto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('nome_produto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Descricao<?= htmlspecialchars(indicadorOrdenacao('nome_produto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('preco_custo', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Preco de custo<?= htmlspecialchars(indicadorOrdenacao('preco_custo', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('preco_venda', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Preco de venda<?= htmlspecialchars(indicadorOrdenacao('preco_venda', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('lucro_bruto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Lucro bruto<?= htmlspecialchars(indicadorOrdenacao('lucro_bruto', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
+                                <th><a class="sort-link" href="<?= htmlspecialchars(linkOrdenacao('markup', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?>">Markup<?= htmlspecialchars(indicadorOrdenacao('markup', $ordenarPor, $direcao), ENT_QUOTES, 'UTF-8') ?></a></th>
                             </tr>
                         </thead>
                         <tbody>

@@ -1,4 +1,4 @@
-CREATE DATABASE IF NOT EXISTS bolosdagal
+﻿CREATE DATABASE IF NOT EXISTS bolosdagal
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS vendas (
     codigo_produto VARCHAR(50) NOT NULL,
     descricao_produto VARCHAR(150) NOT NULL,
     quantidade DECIMAL(10,2) NOT NULL,
+    preco_custo_unitario DECIMAL(10,2) NOT NULL,
     preco_unitario DECIMAL(10,2) NOT NULL,
     valor_total DECIMAL(10,2) NOT NULL,
     forma_pagamento VARCHAR(30) NOT NULL,
@@ -44,6 +45,15 @@ CREATE TABLE IF NOT EXISTS vendas (
     INDEX idx_vendas_comanda_codigo (comanda_codigo),
     INDEX idx_vendas_codigo_produto (codigo_produto),
     INDEX idx_vendas_data_hora (data_hora_venda)
+);
+
+CREATE TABLE IF NOT EXISTS despesas (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    data_despesa DATE NOT NULL,
+    valor_despesa DECIMAL(10,2) NOT NULL,
+    descricao_despesa VARCHAR(255) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_despesas_data (data_despesa)
 );
 
 INSERT INTO usuarios (usuario, senha)

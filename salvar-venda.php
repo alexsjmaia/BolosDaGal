@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require __DIR__ . '/auth.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: vender-item.php');
@@ -88,6 +88,7 @@ try {
             codigo_produto,
             descricao_produto,
             quantidade,
+            preco_custo_unitario,
             preco_unitario,
             valor_total,
             forma_pagamento,
@@ -102,6 +103,7 @@ try {
             :codigo_produto,
             :descricao_produto,
             :quantidade,
+            :preco_custo_unitario,
             :preco_unitario,
             :valor_total,
             :forma_pagamento,
@@ -120,6 +122,7 @@ try {
             'codigo_produto' => $itemCarrinho['codigo_produto'],
             'descricao_produto' => $itemCarrinho['descricao_produto'],
             'quantidade' => number_format((float) $itemCarrinho['quantidade'], 2, '.', ''),
+            'preco_custo_unitario' => number_format((float) $itemCarrinho['preco_custo_unitario'], 2, '.', ''),
             'preco_unitario' => number_format((float) $itemCarrinho['preco_unitario'], 2, '.', ''),
             'valor_total' => number_format((float) $itemCarrinho['valor_total'], 2, '.', ''),
             'forma_pagamento' => $formaPagamento,

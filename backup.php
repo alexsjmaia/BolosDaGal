@@ -3,7 +3,7 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/db.php';
 
 const BACKUP_DIR = __DIR__ . '/backup';
-const BACKUP_TABLES = ['usuarios', 'itens', 'vendas'];
+const BACKUP_TABLES = ['usuarios', 'itens', 'vendas', 'despesas'];
 
 $mensagem = $_SESSION['backup_mensagem'] ?? '';
 $erro = $_SESSION['backup_erro'] ?? '';
@@ -68,8 +68,8 @@ function backup_generate_database_dump(PDO $pdo): array
 
 function backup_restore_database(PDO $pdo, array $dump): void
 {
-    $dropOrder = ['vendas', 'itens', 'usuarios'];
-    $createOrder = ['usuarios', 'itens', 'vendas'];
+    $dropOrder = ['vendas', 'despesas', 'itens', 'usuarios'];
+    $createOrder = ['usuarios', 'itens', 'vendas', 'despesas'];
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
 
