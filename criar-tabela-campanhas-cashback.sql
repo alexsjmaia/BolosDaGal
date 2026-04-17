@@ -1,0 +1,7 @@
+USE bolosdagal;
+
+CREATE TABLE IF NOT EXISTS campanhas_cashback (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    percentual_cashback DECIMAL(5,2) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -48,8 +48,8 @@ if ($dataInicial !== '' || $dataFinal !== '') {
                 v.descricao_produto,
                 SUM(v.quantidade) AS qtd_vendida,
                 SUM(v.quantidade * COALESCE(v.preco_custo_unitario, 0)) AS valor_total_custo,
-                SUM(v.valor_total) AS valor_total_venda,
-                SUM(v.valor_total - (v.quantidade * COALESCE(v.preco_custo_unitario, 0))) AS lucro_bruto,
+                SUM(v.valor_total - COALESCE(v.cashback_utilizado_item, 0)) AS valor_total_venda,
+                SUM((v.valor_total - COALESCE(v.cashback_utilizado_item, 0)) - (v.quantidade * COALESCE(v.preco_custo_unitario, 0))) AS lucro_bruto,
                 GROUP_CONCAT(DISTINCT NULLIF(v.observacao, "") SEPARATOR " | ") AS observacao
              FROM vendas v
              WHERE v.data_hora_venda >= :data_inicial
@@ -324,7 +324,7 @@ if ($dataInicial !== '' || $dataFinal !== '') {
                                     <th>Qtd vendida</th>
                                     <th>Valor total do custo</th>
                                     <th>Valor total de venda</th>
-                                    <th>Lucro venda - custo</th>
+                                    <th>Lucro venda - custo - cashback</th>
                                 </tr>
                             </thead>
                             <tbody>

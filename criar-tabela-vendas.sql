@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS vendas (
     preco_custo_unitario DECIMAL(10,2) NOT NULL,
     preco_unitario DECIMAL(10,2) NOT NULL,
     valor_total DECIMAL(10,2) NOT NULL,
+    cashback_utilizado_item DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     forma_pagamento VARCHAR(30) NOT NULL,
     valor_recebido DECIMAL(10,2) DEFAULT NULL,
     valor_troco DECIMAL(10,2) DEFAULT NULL,

@@ -151,6 +151,30 @@
                 <span class="menu-number">7</span>
                 <span class="menu-text">Listar Despesas</span>
             </a>
+            <a class="menu-item" href="cadastrar-cliente.php">
+                <span class="menu-number">8</span>
+                <span class="menu-text">Cadastrar Cliente</span>
+            </a>
+            <a class="menu-item" href="listar-clientes.php">
+                <span class="menu-number">9</span>
+                <span class="menu-text">Listar Clientes</span>
+            </a>
+            <a class="menu-item" href="relatorio-vendas-clientes.php">
+                <span class="menu-number">10</span>
+                <span class="menu-text">Relatorio de Vendas por Cliente</span>
+            </a>
+            <a class="menu-item" href="campanha-cashback.php">
+                <span class="menu-number">11</span>
+                <span class="menu-text">Campanhas de Cashback</span>
+            </a>
+            <a class="menu-item" href="listar-pedidos-clientes.php">
+                <span class="menu-number">12</span>
+                <span class="menu-text">Pedidos Feitos</span>
+            </a>
+            <a class="menu-item" href="catalogo-retaguarda.php">
+                <span class="menu-number">13</span>
+                <span class="menu-text">Catalogo com Edicao</span>
+            </a>
         </section>
 
         <div class="toolbar">

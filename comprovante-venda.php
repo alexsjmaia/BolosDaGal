@@ -37,6 +37,14 @@ if (!$vendas) {
 
 $primeiraVenda = $vendas[0];
 $totalProdutos = 0.0;
+$resumoCliente = $_SESSION['ultima_venda_cliente'] ?? null;
+
+if (
+    is_array($resumoCliente) &&
+    (($resumoCliente['comanda_codigo'] ?? '') !== $comandaCodigo)
+) {
+    $resumoCliente = null;
+}
 
 foreach ($vendas as $venda) {
     $totalProdutos += (float) $venda['valor_total'];
@@ -110,11 +118,49 @@ foreach ($vendas as $venda) {
     $linhasItens = array_merge($linhasItens, cupom_item_line($venda));
 }
 
-$formaPagamentoLabel = $primeiraVenda['forma_pagamento'] === 'Dinheiro'
+$pagamentoRegistrado = (string) $primeiraVenda['forma_pagamento'];
+$formaPagamentoLabel = $pagamentoRegistrado === 'Dinheiro'
     ? 'Pagamento em Dinheiro'
-    : 'Pagamento ' . $primeiraVenda['forma_pagamento'];
+    : 'Pagamento ' . $pagamentoRegistrado;
+$pagamentoTemDinheiro = strpos($pagamentoRegistrado, 'Dinheiro') !== false;
 
 $larguraCupom = 38;
+$blocoCliente = '';
+
+if (is_array($resumoCliente)) {
+    $linhasCashback = [];
+    $saldoCashbackAnterior = (float) ($resumoCliente['saldo_cashback_anterior'] ?? 0);
+    $cashbackUsado = (float) ($resumoCliente['cashback_usado'] ?? 0);
+    $trocoCashback = (float) ($resumoCliente['troco_cashback'] ?? 0);
+    $cashbackGerado = (float) ($resumoCliente['cashback_gerado'] ?? 0);
+    $saldoCashbackFinal = (float) ($resumoCliente['saldo_cashback_final'] ?? 0);
+
+    if ($saldoCashbackAnterior > 0) {
+        $linhasCashback[] = cupom_line('Saldo cashback', 'R$ ' . cupom_money($saldoCashbackAnterior), $larguraCupom);
+    }
+
+    if ($cashbackUsado > 0) {
+        $linhasCashback[] = cupom_line('Cashback usado', 'R$ ' . cupom_money($cashbackUsado), $larguraCupom);
+    }
+
+    if ($trocoCashback > 0) {
+        $linhasCashback[] = cupom_line('Troco cashback', 'R$ ' . cupom_money($trocoCashback), $larguraCupom);
+    }
+
+    if ($cashbackGerado > 0) {
+        $linhasCashback[] = cupom_line('Cashback gerado', 'R$ ' . cupom_money($cashbackGerado), $larguraCupom);
+    }
+
+    if ($saldoCashbackFinal > 0) {
+        $linhasCashback[] = cupom_line('Saldo Atual de cashback', 'R$ ' . cupom_money($saldoCashbackFinal), $larguraCupom);
+    }
+
+    $blocoCliente =
+        cupom_line('Cliente', substr((string) $resumoCliente['cliente_nome'], 0, 22), $larguraCupom) . "\n" .
+        cupom_line('WhatsApp', substr((string) $resumoCliente['cliente_whatsapp'], 0, 22), $larguraCupom) . "\n" .
+        ($linhasCashback ? implode("\n", $linhasCashback) . "\n" : '') .
+        str_repeat('-', $larguraCupom) . "\n";
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -198,12 +244,13 @@ str_repeat('=', $larguraCupom) . "\n" .
 'Rua Silva Teles, 671' . "\n" .
 str_repeat('-', $larguraCupom) . "\n" .
 cupom_date($primeiraVenda['data_hora_venda']) . "\n\n" .
+$blocoCliente .
 'Ref  Descricao         Qtd   Pre   Sub' . "\n" .
 implode("\n", $linhasItens) . "\n\n" .
 cupom_line('Total dos produtos', 'R$ ' . cupom_money($totalProdutos), $larguraCupom) . "\n" .
-cupom_line($formaPagamentoLabel, 'R$ ' . cupom_money((float) ($primeiraVenda['forma_pagamento'] === 'Dinheiro' ? $primeiraVenda['valor_recebido'] : $totalProdutos)), $larguraCupom) . "\n" .
+cupom_line($formaPagamentoLabel, 'R$ ' . cupom_money((float) ($pagamentoTemDinheiro ? $primeiraVenda['valor_recebido'] : $totalProdutos)), $larguraCupom) . "\n" .
 (
-    $primeiraVenda['forma_pagamento'] === 'Dinheiro'
+    $pagamentoTemDinheiro
         ? cupom_line('Troco', 'R$ ' . cupom_money((float) $primeiraVenda['valor_troco']), $larguraCupom) . "\n"
         : ''
 ) .

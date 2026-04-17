@@ -5,6 +5,7 @@ require __DIR__ . '/db.php';
 $erro = $_SESSION['alterar_item_erro'] ?? '';
 $sucesso = $_SESSION['alterar_item_sucesso'] ?? '';
 unset($_SESSION['alterar_item_erro'], $_SESSION['alterar_item_sucesso']);
+$podeCarregarFoto = currentUserCanUploadPhotos();
 
 $codigoSelecionado = trim($_GET['codigo'] ?? '');
 
@@ -15,7 +16,7 @@ $item = null;
 
 if ($codigoSelecionado !== '') {
     $stmtItem = $pdo->prepare(
-        'SELECT id, codigo_produto, nome_produto, ncm, preco_custo, preco_venda
+        'SELECT id, codigo_produto, nome_produto, ncm, foto_produto, mostrar_catalogo, preco_custo, preco_venda
          FROM itens
          WHERE codigo_produto = :codigo_produto
          LIMIT 1'
@@ -220,7 +221,7 @@ if ($codigoSelecionado !== '') {
                     <h2>Dados do item</h2>
 
                     <?php if ($item): ?>
-                        <form action="atualizar-item.php" method="post">
+                        <form action="atualizar-item.php" method="post" enctype="multipart/form-data">
                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
 
                             <div class="grid">
@@ -248,6 +249,33 @@ if ($codigoSelecionado !== '') {
                                     <label for="preco_venda">Preco de venda</label>
                                     <input type="text" id="preco_venda" name="preco_venda" value="<?= htmlspecialchars(number_format((float) $item['preco_venda'], 2, '.', ''), ENT_QUOTES, 'UTF-8') ?>" required>
                                 </div>
+
+                                <?php if ($podeCarregarFoto): ?>
+                                    <div>
+                                        <label for="foto_produto">Foto do produto</label>
+                                        <input type="file" id="foto_produto" name="foto_produto" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                                    </div>
+                                <?php else: ?>
+                                    <div>
+                                        <label>Foto do produto</label>
+                                        <input type="text" value="Somente usuarios bolos e root podem alterar foto." readonly>
+                                    </div>
+                                <?php endif; ?>
+
+                                <div>
+                                    <label for="mostrar_catalogo">Mostrar no catalogo</label>
+                                    <select id="mostrar_catalogo" name="mostrar_catalogo">
+                                        <option value="1" <?= ((string) ($item['mostrar_catalogo'] ?? '1') === '1') ? 'selected' : '' ?>>Sim</option>
+                                        <option value="0" <?= ((string) ($item['mostrar_catalogo'] ?? '1') === '0') ? 'selected' : '' ?>>Nao</option>
+                                    </select>
+                                </div>
+
+                                <?php if (!empty($item['foto_produto'])): ?>
+                                    <div>
+                                        <label>Foto atual</label>
+                                        <img src="<?= htmlspecialchars((string) $item['foto_produto'], ENT_QUOTES, 'UTF-8') ?>" alt="Foto do produto" style="max-width: 220px; border-radius: 12px; border: 1px solid var(--border);">
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="actions">

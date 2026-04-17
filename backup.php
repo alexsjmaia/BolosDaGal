@@ -3,7 +3,6 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/db.php';
 
 const BACKUP_DIR = __DIR__ . '/backup';
-const BACKUP_TABLES = ['usuarios', 'itens', 'vendas', 'despesas'];
 
 $mensagem = $_SESSION['backup_mensagem'] ?? '';
 $erro = $_SESSION['backup_erro'] ?? '';
@@ -46,14 +45,114 @@ function backup_add_files(ZipArchive $zip, string $sourceDir, string $backupFile
     }
 }
 
-function backup_generate_database_dump(PDO $pdo): array
+function backup_get_all_tables(PDO $pdo): array
 {
+    $tables = [];
+    $stmt = $pdo->query('SHOW TABLES');
+
+    foreach ($stmt->fetchAll(PDO::FETCH_NUM) as $row) {
+        $table = (string) ($row[0] ?? '');
+        if ($table !== '') {
+            $tables[] = $table;
+        }
+    }
+
+    return $tables;
+}
+
+function backup_order_tables_for_restore(PDO $pdo, string $schema, array $tables): array
+{
+    if (!$tables) {
+        return [];
+    }
+
+    $uniqueTables = array_values(array_unique(array_map('strval', $tables)));
+    $inDegree = [];
+    $children = [];
+
+    foreach ($uniqueTables as $table) {
+        $inDegree[$table] = 0;
+        $children[$table] = [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($uniqueTables), '?'));
+    $params = array_merge([$schema, $schema], $uniqueTables, $uniqueTables);
+    $sql = 'SELECT TABLE_NAME, REFERENCED_TABLE_NAME
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = ?
+              AND REFERENCED_TABLE_SCHEMA = ?
+              AND REFERENCED_TABLE_NAME IS NOT NULL
+              AND TABLE_NAME IN (' . $placeholders . ')
+              AND REFERENCED_TABLE_NAME IN (' . $placeholders . ')';
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    foreach ($stmt->fetchAll() as $row) {
+        $child = (string) ($row['TABLE_NAME'] ?? '');
+        $parent = (string) ($row['REFERENCED_TABLE_NAME'] ?? '');
+
+        if ($child === '' || $parent === '' || $child === $parent) {
+            continue;
+        }
+
+        $alreadyLinked = in_array($child, $children[$parent], true);
+        if (!$alreadyLinked) {
+            $children[$parent][] = $child;
+            $inDegree[$child]++;
+        }
+    }
+
+    $queue = [];
+    foreach ($inDegree as $table => $degree) {
+        if ($degree === 0) {
+            $queue[] = $table;
+        }
+    }
+
+    sort($queue);
+    $ordered = [];
+
+    while ($queue) {
+        $current = array_shift($queue);
+        $ordered[] = $current;
+
+        foreach ($children[$current] as $child) {
+            $inDegree[$child]--;
+
+            if ($inDegree[$child] === 0) {
+                $queue[] = $child;
+            }
+        }
+
+        sort($queue);
+    }
+
+    if (count($ordered) !== count($uniqueTables)) {
+        foreach ($uniqueTables as $table) {
+            if (!in_array($table, $ordered, true)) {
+                $ordered[] = $table;
+            }
+        }
+    }
+
+    return $ordered;
+}
+
+function backup_generate_database_dump(PDO $pdo, string $schema): array
+{
+    $tables = backup_get_all_tables($pdo);
+    $createOrder = backup_order_tables_for_restore($pdo, $schema, $tables);
+
     $dump = [
         'generated_at' => date('c'),
+        'schema' => $schema,
+        'table_order' => $tables,
+        'create_order' => $createOrder,
         'tables' => [],
     ];
 
-    foreach (BACKUP_TABLES as $table) {
+    foreach ($tables as $table) {
         $createStmt = $pdo->query('SHOW CREATE TABLE `' . $table . '`')->fetch();
         $rows = $pdo->query('SELECT * FROM `' . $table . '`')->fetchAll(PDO::FETCH_ASSOC);
 
@@ -68,8 +167,31 @@ function backup_generate_database_dump(PDO $pdo): array
 
 function backup_restore_database(PDO $pdo, array $dump): void
 {
-    $dropOrder = ['vendas', 'despesas', 'itens', 'usuarios'];
-    $createOrder = ['usuarios', 'itens', 'vendas', 'despesas'];
+    $tablesDump = is_array($dump['tables'] ?? null) ? array_keys($dump['tables']) : [];
+
+    if (!$tablesDump) {
+        throw new RuntimeException('Nenhuma tabela encontrada no dump do banco.');
+    }
+
+    $createOrder = [];
+    $createOrderDump = $dump['create_order'] ?? [];
+
+    if (is_array($createOrderDump)) {
+        foreach ($createOrderDump as $table) {
+            $table = (string) $table;
+            if ($table !== '' && in_array($table, $tablesDump, true) && !in_array($table, $createOrder, true)) {
+                $createOrder[] = $table;
+            }
+        }
+    }
+
+    foreach ($tablesDump as $table) {
+        if (!in_array($table, $createOrder, true)) {
+            $createOrder[] = $table;
+        }
+    }
+
+    $dropOrder = array_reverse($createOrder);
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
 
@@ -107,6 +229,29 @@ function backup_restore_database(PDO $pdo, array $dump): void
     }
 
     $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+}
+
+function backup_delete_directory(string $dir): void
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($iterator as $item) {
+        if ($item->isDir()) {
+            rmdir($item->getPathname());
+            continue;
+        }
+
+        unlink($item->getPathname());
+    }
+
+    rmdir($dir);
 }
 
 function backup_copy_restored_files(string $tempDir, string $projectDir): void
@@ -147,6 +292,7 @@ function backup_copy_restored_files(string $tempDir, string $projectDir): void
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = $_POST['acao'] ?? '';
+    $schema = (string) ($config['db_name'] ?? '');
 
     if ($acao === 'criar_backup') {
         if (!class_exists('ZipArchive')) {
@@ -164,7 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            $dump = backup_generate_database_dump($pdo);
+            $dump = backup_generate_database_dump($pdo, $schema);
             $zip->addFromString('database-backup.json', json_encode($dump, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             $zip->addFromString('restore-instrucoes.txt', "Backup completo do sistema Bolos da Gal.\r\nRestaure pela tela backup.php.\r\n");
             backup_add_files($zip, __DIR__, $backupFile);
@@ -208,34 +354,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($zip->open($backupFile) !== true) {
             $_SESSION['backup_erro'] = 'Nao foi possivel abrir o backup selecionado.';
-            backup_redirect();
-        }
-
-        $zip->extractTo($tempDir);
-        $zip->close();
-
-        $dumpFile = $tempDir . DIRECTORY_SEPARATOR . 'database-backup.json';
-
-        if (!is_file($dumpFile)) {
-            $_SESSION['backup_erro'] = 'O backup selecionado nao contem o banco de dados.';
-            backup_redirect();
-        }
-
-        $dump = json_decode((string) file_get_contents($dumpFile), true);
-
-        if (!is_array($dump) || !isset($dump['tables'])) {
-            $_SESSION['backup_erro'] = 'O arquivo de banco do backup esta invalido.';
+            backup_delete_directory($tempDir);
             backup_redirect();
         }
 
         try {
+            $zip->extractTo($tempDir);
+            $zip->close();
+
+            $dumpFile = $tempDir . DIRECTORY_SEPARATOR . 'database-backup.json';
+
+            if (!is_file($dumpFile)) {
+                throw new RuntimeException('O backup selecionado nao contem o banco de dados.');
+            }
+
+            $dump = json_decode((string) file_get_contents($dumpFile), true);
+
+            if (!is_array($dump) || !isset($dump['tables'])) {
+                throw new RuntimeException('O arquivo de banco do backup esta invalido.');
+            }
+
             backup_restore_database($pdo, $dump);
             backup_copy_restored_files($tempDir, __DIR__);
         } catch (Throwable $e) {
             $_SESSION['backup_erro'] = 'Nao foi possivel restaurar o backup. Detalhe: ' . $e->getMessage();
+            backup_delete_directory($tempDir);
             backup_redirect();
         }
 
+        backup_delete_directory($tempDir);
         $_SESSION['backup_mensagem'] = 'Backup restaurado com sucesso a partir de ' . $arquivo;
         backup_redirect();
     }

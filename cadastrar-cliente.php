@@ -1,38 +1,22 @@
 <?php
+if (!defined('DISABLE_SESSION_TIMEOUT')) {
+    define('DISABLE_SESSION_TIMEOUT', true);
+}
+
 require __DIR__ . '/auth.php';
-require __DIR__ . '/db.php';
 
-$erro = $_SESSION['item_erro'] ?? '';
-$sucesso = $_SESSION['item_sucesso'] ?? '';
-$dados = $_SESSION['item_dados'] ?? [];
+$erro = $_SESSION['cliente_erro'] ?? '';
+$sucesso = $_SESSION['cliente_sucesso'] ?? '';
+$dados = $_SESSION['cliente_dados'] ?? [];
 
-unset($_SESSION['item_erro'], $_SESSION['item_sucesso'], $_SESSION['item_dados']);
-
-$stmt = $pdo->query('SELECT codigo_produto FROM itens');
-$codigosExistentes = $stmt->fetchAll(PDO::FETCH_COLUMN);
-$podeCarregarFoto = currentUserCanUploadPhotos();
-$codigosNumericos = [];
-
-foreach ($codigosExistentes as $codigoExistente) {
-    if (ctype_digit((string) $codigoExistente)) {
-        $codigosNumericos[(int) $codigoExistente] = true;
-    }
-}
-
-$proximoCodigoDisponivel = 1;
-
-while (isset($codigosNumericos[$proximoCodigoDisponivel])) {
-    $proximoCodigoDisponivel++;
-}
-
-$codigoSugerido = $dados['codigo_produto'] ?? (string) $proximoCodigoDisponivel;
+unset($_SESSION['cliente_erro'], $_SESSION['cliente_sucesso'], $_SESSION['cliente_dados']);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastrar Item - Bolos da Gal</title>
+    <title>Cadastrar Cliente - Bolos da Gal</title>
     <style>
         :root {
             --primary: #d99aa5;
@@ -158,8 +142,8 @@ $codigoSugerido = $dados['codigo_produto'] ?? (string) $proximoCodigoDisponivel;
 </head>
 <body>
     <main class="card">
-        <h1>Cadastrar Item</h1>
-        <p class="lead">Informe os dados do produto para gravar no banco de dados.</p>
+        <h1>Cadastrar Cliente</h1>
+        <p class="lead">Informe o WhatsApp e o nome do cliente para gravar no banco de dados.</p>
 
         <?php if ($erro !== ''): ?>
             <div class="alert error"><?= htmlspecialchars($erro, ENT_QUOTES, 'UTF-8') ?></div>
@@ -169,56 +153,21 @@ $codigoSugerido = $dados['codigo_produto'] ?? (string) $proximoCodigoDisponivel;
             <div class="alert success"><?= htmlspecialchars($sucesso, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
 
-        <form action="salvar-item.php" method="post" enctype="multipart/form-data">
+        <form action="salvar-cliente.php" method="post">
             <div class="grid">
                 <div>
-                    <label for="codigo_produto">Codigo do produto</label>
-                    <input type="text" id="codigo_produto" name="codigo_produto" value="<?= htmlspecialchars($codigoSugerido, ENT_QUOTES, 'UTF-8') ?>" required>
+                    <label for="whatsapp">WhatsApp</label>
+                    <input type="text" id="whatsapp" name="whatsapp" value="<?= htmlspecialchars($dados['whatsapp'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
 
                 <div>
-                    <label for="nome_produto">Nome do produto</label>
-                    <input type="text" id="nome_produto" name="nome_produto" value="<?= htmlspecialchars($dados['nome_produto'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
-                </div>
-
-                <div>
-                    <label for="ncm">NCM</label>
-                    <input type="text" id="ncm" name="ncm" value="<?= htmlspecialchars($dados['ncm'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
-                </div>
-
-                <div>
-                    <label for="preco_custo">Preco de custo</label>
-                    <input type="number" id="preco_custo" name="preco_custo" step="0.01" min="0" value="<?= htmlspecialchars($dados['preco_custo'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
-                </div>
-
-                <div>
-                    <label for="preco_venda">Preco de venda</label>
-                    <input type="number" id="preco_venda" name="preco_venda" step="0.01" min="0" value="<?= htmlspecialchars($dados['preco_venda'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
-                </div>
-
-                <?php if ($podeCarregarFoto): ?>
-                    <div>
-                        <label for="foto_produto">Foto do produto</label>
-                        <input type="file" id="foto_produto" name="foto_produto" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
-                    </div>
-                <?php else: ?>
-                    <div>
-                        <label>Foto do produto</label>
-                        <input type="text" value="Somente usuarios bolos e root podem carregar foto." readonly>
-                    </div>
-                <?php endif; ?>
-
-                <div>
-                    <label for="mostrar_catalogo">Mostrar no catalogo</label>
-                    <select id="mostrar_catalogo" name="mostrar_catalogo">
-                        <option value="1" <?= (($dados['mostrar_catalogo'] ?? '1') === '1') ? 'selected' : '' ?>>Sim</option>
-                        <option value="0" <?= (($dados['mostrar_catalogo'] ?? '1') === '0') ? 'selected' : '' ?>>Nao</option>
-                    </select>
+                    <label for="nome">Nome</label>
+                    <input type="text" id="nome" name="nome" value="<?= htmlspecialchars($dados['nome'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
             </div>
 
             <div class="actions">
-                <button class="button" type="submit">Salvar item</button>
+                <button class="button" type="submit">Salvar cliente</button>
                 <a class="button secondary" href="dashboard.php">Voltar ao menu</a>
             </div>
         </form>
