@@ -9,14 +9,32 @@ $podeCarregarFoto = currentUserCanUploadPhotos();
 
 $codigoSelecionado = trim($_GET['codigo'] ?? '');
 
-$stmtLista = $pdo->query('SELECT codigo_produto, nome_produto FROM itens ORDER BY codigo_produto');
+$stmtLista = $pdo->query(
+    "SELECT codigo_produto, nome_produto
+     FROM itens
+     ORDER BY
+        CASE
+            WHEN codigo_produto REGEXP '^[0-9]+$' THEN 0
+            ELSE 1
+        END ASC,
+        CAST(codigo_produto AS UNSIGNED) ASC,
+        codigo_produto ASC"
+);
 $itens = $stmtLista->fetchAll();
+
+$stmtCategorias = $pdo->query(
+    'SELECT nome
+     FROM categorias
+     WHERE ativo = 1
+     ORDER BY nome ASC, id ASC'
+);
+$categorias = $stmtCategorias->fetchAll(PDO::FETCH_COLUMN);
 
 $item = null;
 
 if ($codigoSelecionado !== '') {
     $stmtItem = $pdo->prepare(
-        'SELECT id, codigo_produto, nome_produto, ncm, foto_produto, mostrar_catalogo, preco_custo, preco_venda
+        'SELECT id, codigo_produto, nome_produto, categoria, ncm, foto_produto, mostrar_catalogo, preco_custo, preco_venda
          FROM itens
          WHERE codigo_produto = :codigo_produto
          LIMIT 1'
@@ -236,6 +254,24 @@ if ($codigoSelecionado !== '') {
                                 </div>
 
                                 <div>
+                                    <label for="categoria">Categoria</label>
+                                    <?php $categoriaAtual = (string) ($item['categoria'] ?? ''); ?>
+                                    <select id="categoria" name="categoria">
+                                        <option value="">Sem categoria</option>
+                                        <?php foreach ($categorias as $categoriaNome): ?>
+                                            <option value="<?= htmlspecialchars((string) $categoriaNome, ENT_QUOTES, 'UTF-8') ?>" <?= $categoriaAtual === (string) $categoriaNome ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars((string) $categoriaNome, ENT_QUOTES, 'UTF-8') ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                        <?php if ($categoriaAtual !== '' && !in_array($categoriaAtual, $categorias, true)): ?>
+                                            <option value="<?= htmlspecialchars($categoriaAtual, ENT_QUOTES, 'UTF-8') ?>" selected>
+                                                <?= htmlspecialchars($categoriaAtual, ENT_QUOTES, 'UTF-8') ?> (atual)
+                                            </option>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+
+                                <div>
                                     <label for="ncm">NCM</label>
                                     <input type="text" id="ncm" name="ncm" value="<?= htmlspecialchars($item['ncm'], ENT_QUOTES, 'UTF-8') ?>" required>
                                 </div>
@@ -301,5 +337,35 @@ if ($codigoSelecionado !== '') {
         </section>
     </main>
 </body>
+<script>
+    (function () {
+        const camposMoeda = [
+            document.getElementById('preco_custo'),
+            document.getElementById('preco_venda')
+        ].filter(Boolean);
+
+        function formatarComoMoeda(valor) {
+            const apenasDigitos = String(valor || '').replace(/\D+/g, '');
+            if (apenasDigitos === '') {
+                return '';
+            }
+
+            const numero = parseInt(apenasDigitos, 10);
+            if (Number.isNaN(numero)) {
+                return '';
+            }
+
+            return (numero / 100).toFixed(2).replace('.', ',');
+        }
+
+        camposMoeda.forEach(function (campo) {
+            campo.addEventListener('input', function () {
+                campo.value = formatarComoMoeda(campo.value);
+            });
+
+            campo.value = formatarComoMoeda(campo.value);
+        });
+    })();
+</script>
 <?php renderIdleLogoutScript(); ?>
 </html>

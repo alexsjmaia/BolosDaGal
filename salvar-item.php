@@ -11,6 +11,7 @@ const ITEM_UPLOAD_DIR = __DIR__ . '/uploads/produtos';
 
 $codigoProduto = trim($_POST['codigo_produto'] ?? '');
 $nomeProduto = trim($_POST['nome_produto'] ?? '');
+$categoria = trim($_POST['categoria'] ?? '');
 $ncm = trim($_POST['ncm'] ?? '');
 $precoCusto = str_replace(',', '.', trim($_POST['preco_custo'] ?? ''));
 $precoVenda = str_replace(',', '.', trim($_POST['preco_venda'] ?? ''));
@@ -19,6 +20,7 @@ $mostrarCatalogo = (($_POST['mostrar_catalogo'] ?? '1') === '0') ? '0' : '1';
 $_SESSION['item_dados'] = [
     'codigo_produto' => $codigoProduto,
     'nome_produto' => $nomeProduto,
+    'categoria' => $categoria,
     'ncm' => $ncm,
     'preco_custo' => $precoCusto,
     'preco_venda' => $precoVenda,
@@ -87,13 +89,14 @@ if (is_array($arquivoFoto) && (int) ($arquivoFoto['error'] ?? UPLOAD_ERR_NO_FILE
 
 try {
     $stmt = $pdo->prepare(
-        'INSERT INTO itens (codigo_produto, nome_produto, ncm, foto_produto, preco_custo, preco_venda, mostrar_catalogo)
-         VALUES (:codigo_produto, :nome_produto, :ncm, :foto_produto, :preco_custo, :preco_venda, :mostrar_catalogo)'
+        'INSERT INTO itens (codigo_produto, nome_produto, categoria, ncm, foto_produto, preco_custo, preco_venda, mostrar_catalogo)
+         VALUES (:codigo_produto, :nome_produto, :categoria, :ncm, :foto_produto, :preco_custo, :preco_venda, :mostrar_catalogo)'
     );
 
     $stmt->execute([
         'codigo_produto' => $codigoProduto,
         'nome_produto' => $nomeProduto,
+        'categoria' => $categoria !== '' ? $categoria : null,
         'ncm' => $ncm,
         'foto_produto' => $fotoProdutoPath,
         'preco_custo' => number_format((float) $precoCusto, 2, '.', ''),

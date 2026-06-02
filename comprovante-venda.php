@@ -123,42 +123,17 @@ $formaPagamentoLabel = $pagamentoRegistrado === 'Dinheiro'
     ? 'Pagamento em Dinheiro'
     : 'Pagamento ' . $pagamentoRegistrado;
 $pagamentoTemDinheiro = strpos($pagamentoRegistrado, 'Dinheiro') !== false;
+$avisoFidelidade = '';
 
 $larguraCupom = 38;
 $blocoCliente = '';
 
 if (is_array($resumoCliente)) {
-    $linhasCashback = [];
-    $saldoCashbackAnterior = (float) ($resumoCliente['saldo_cashback_anterior'] ?? 0);
-    $cashbackUsado = (float) ($resumoCliente['cashback_usado'] ?? 0);
-    $trocoCashback = (float) ($resumoCliente['troco_cashback'] ?? 0);
-    $cashbackGerado = (float) ($resumoCliente['cashback_gerado'] ?? 0);
-    $saldoCashbackFinal = (float) ($resumoCliente['saldo_cashback_final'] ?? 0);
-
-    if ($saldoCashbackAnterior > 0) {
-        $linhasCashback[] = cupom_line('Saldo cashback', 'R$ ' . cupom_money($saldoCashbackAnterior), $larguraCupom);
-    }
-
-    if ($cashbackUsado > 0) {
-        $linhasCashback[] = cupom_line('Cashback usado', 'R$ ' . cupom_money($cashbackUsado), $larguraCupom);
-    }
-
-    if ($trocoCashback > 0) {
-        $linhasCashback[] = cupom_line('Troco cashback', 'R$ ' . cupom_money($trocoCashback), $larguraCupom);
-    }
-
-    if ($cashbackGerado > 0) {
-        $linhasCashback[] = cupom_line('Cashback gerado', 'R$ ' . cupom_money($cashbackGerado), $larguraCupom);
-    }
-
-    if ($saldoCashbackFinal > 0) {
-        $linhasCashback[] = cupom_line('Saldo Atual de cashback', 'R$ ' . cupom_money($saldoCashbackFinal), $larguraCupom);
-    }
+    $avisoFidelidade = trim((string) ($resumoCliente['aviso_fidelidade'] ?? ''));
 
     $blocoCliente =
         cupom_line('Cliente', substr((string) $resumoCliente['cliente_nome'], 0, 22), $larguraCupom) . "\n" .
         cupom_line('WhatsApp', substr((string) $resumoCliente['cliente_whatsapp'], 0, 22), $larguraCupom) . "\n" .
-        ($linhasCashback ? implode("\n", $linhasCashback) . "\n" : '') .
         str_repeat('-', $larguraCupom) . "\n";
 }
 ?>
@@ -194,6 +169,19 @@ if (is_array($resumoCliente)) {
             text-decoration: none;
             font-weight: bold;
             cursor: pointer;
+        }
+
+        .alert-info {
+            width: 80mm;
+            max-width: 100%;
+            margin: 0 auto 12px;
+            padding: 10px 10px;
+            border-radius: 8px;
+            background: #fff7d9;
+            border: 1px solid #e6d493;
+            color: #5a4d1f;
+            font-size: 12px;
+            line-height: 1.35;
         }
 
         .receipt {
@@ -233,6 +221,10 @@ if (is_array($resumoCliente)) {
         <button class="button" type="button" onclick="window.print()">Imprimir</button>
         <a class="button" href="vender-item.php">Nova venda</a>
     </div>
+
+    <?php if ($avisoFidelidade !== ''): ?>
+        <div class="alert-info"><?= htmlspecialchars($avisoFidelidade, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
 
     <pre class="receipt"><?=
 htmlspecialchars(

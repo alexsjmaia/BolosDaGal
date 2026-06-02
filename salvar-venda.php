@@ -13,12 +13,8 @@ $formaPagamento = trim($_POST['forma_pagamento'] ?? '');
 $valorRecebido = str_replace(',', '.', trim($_POST['valor_recebido'] ?? ''));
 $dataVenda = trim($_POST['data_venda'] ?? '');
 $clienteId = (int) ($_POST['cliente_id'] ?? 0);
-$usarCashback = (($_POST['usar_cashback'] ?? '') === '1');
-$formaPagamentoRestante = trim($_POST['forma_pagamento_restante'] ?? '');
 
 $_SESSION['venda_cliente_id'] = $clienteId;
-$_SESSION['venda_usar_cashback'] = $usarCashback ? '1' : '0';
-$_SESSION['venda_forma_pagamento_restante'] = $formaPagamentoRestante;
 
 if (!$carrinho) {
     $_SESSION['venda_erro'] = 'Adicione pelo menos um item ao carrinho antes de finalizar a venda.';
@@ -27,13 +23,6 @@ if (!$carrinho) {
 }
 
 $formasPagamentoValidas = [
-    'Dinheiro',
-    'Pix',
-    'Cartao de credito',
-    'Cartao de debito',
-    'Cashback',
-];
-$formasPagamentoRestanteValidas = [
     'Dinheiro',
     'Pix',
     'Cartao de credito',
@@ -72,6 +61,7 @@ if ($dataVenda !== '') {
 
 $comandaCodigo = 'CMD-' . date('YmdHis') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT);
 $totalGeral = 0.0;
+$totalQuantidadeItensPromocao = 0.0;
 $itensCarrinho = array_values($carrinho);
 
 foreach ($itensCarrinho as $itemCarrinho) {
@@ -84,12 +74,28 @@ $cashbackGerado = 0.0;
 $cashbackUsado = 0.0;
 $trocoCashback = 0.0;
 $saldoCashbackAnterior = 0.0;
+$saldoCashbackDisponivel = 0.0;
 $saldoCashbackFinal = 0.0;
 $cashbackPorItem = [];
+$bonusExpiraEmAtual = null;
+$bonusExpiraEmFinal = null;
+$fidelidadeQuantidadeAnterior = 0.0;
+$fidelidadeQuantidadeFinal = 0.0;
+$bolosGratisAnterior = 0;
+$bolosGratisFinal = 0;
+$novosBolosGratis = 0;
+$avisoFidelidade = '';
 
 try {
     $stmtCliente = $pdo->prepare(
-        'SELECT id, nome, whatsapp, saldo_cashback
+        'SELECT
+            id,
+            nome,
+            whatsapp,
+            saldo_cashback,
+            bonus_expira_em,
+            fidelidade_quantidade_acumulada,
+            bolos_gratis_disponiveis
          FROM clientes
          WHERE id = :id
          LIMIT 1'
@@ -104,40 +110,38 @@ try {
     }
 
     $saldoCashbackAnterior = (float) $cliente['saldo_cashback'];
-    $aplicarCashback = $usarCashback || $formaPagamento === 'Cashback';
-
-    if ($aplicarCashback) {
-        $cashbackUsado = min($saldoCashbackAnterior, $totalGeral);
-        $trocoCashback = max($saldoCashbackAnterior - $cashbackUsado, 0);
-    }
-
-    $valorRestante = max($totalGeral - $cashbackUsado, 0);
-    $cashbackGerado = $cashbackUsado > 0
-        ? 0.0
-        : round($valorRestante * 0.10, 2);
-
-    if ($formaPagamento === 'Cashback' && $valorRestante > 0) {
-        if (!in_array($formaPagamentoRestante, $formasPagamentoRestanteValidas, true)) {
-            $_SESSION['venda_erro'] = 'Selecione a forma de pagamento para o restante da compra.';
-            header('Location: vender-item.php');
-            exit;
-        }
-    }
+    $fidelidadeQuantidadeAnterior = (float) ($cliente['fidelidade_quantidade_acumulada'] ?? 0);
+    $bolosGratisAnterior = (int) ($cliente['bolos_gratis_disponiveis'] ?? 0);
+    $bonusExpiraEmAtual = $cliente['bonus_expira_em'] ?? null;
+    $saldoCashbackDisponivel = $saldoCashbackAnterior;
 
     if (
-        ($formaPagamento === 'Dinheiro' && $valorRestante > 0) ||
-        ($formaPagamento === 'Cashback' && $valorRestante > 0 && $formaPagamentoRestante === 'Dinheiro')
+        $bonusExpiraEmAtual !== null &&
+        $bonusExpiraEmAtual !== '' &&
+        strtotime((string) $bonusExpiraEmAtual) < strtotime($dataHoraVenda)
     ) {
-        if ($valorRecebido === '' || !is_numeric($valorRecebido)) {
-            $_SESSION['venda_erro'] = 'Informe o valor recebido em dinheiro.';
+        $saldoCashbackDisponivel = 0.0;
+        $bonusExpiraEmAtual = null;
+    }
+
+    $valorRestante = $totalGeral;
+    $cashbackGerado = 0.0;
+
+    if (
+        ($formaPagamento === 'Dinheiro' && $valorRestante > 0)
+    ) {
+        if ($valorRecebido === '') {
+            $valorRecebidoFinal = $valorRestante;
+        } elseif (!is_numeric($valorRecebido)) {
+            $_SESSION['venda_erro'] = 'Informe um valor numerico valido para pagamento em dinheiro.';
             header('Location: vender-item.php');
             exit;
+        } else {
+            $valorRecebidoFinal = (float) $valorRecebido;
         }
 
-        $valorRecebidoFinal = (float) $valorRecebido;
-
         if ($valorRecebidoFinal < $valorRestante) {
-            $_SESSION['venda_erro'] = 'O valor recebido nao pode ser menor que o valor restante apos usar cashback.';
+            $_SESSION['venda_erro'] = 'O valor recebido nao pode ser menor que o valor total.';
             header('Location: vender-item.php');
             exit;
         }
@@ -146,13 +150,53 @@ try {
     }
 
     $formaPagamentoFinal = $formaPagamento;
-    if ($formaPagamento === 'Cashback' && $valorRestante > 0) {
-        $formaPagamentoFinal = 'Cashback + ' . $formaPagamentoRestante;
-    } elseif ($cashbackUsado > 0 && $formaPagamento !== 'Cashback') {
-        $formaPagamentoFinal = $formaPagamento . ' + Cashback';
-    }
 
     $pdo->beginTransaction();
+
+    $idsItens = array_values(array_unique(array_map(
+        static fn(array $item): int => (int) ($item['item_id'] ?? 0),
+        $itensCarrinho
+    )));
+    $idsItens = array_values(array_filter($idsItens, static fn(int $id): bool => $id > 0));
+
+    $categoriasPorItem = [];
+    if ($idsItens) {
+        $placeholders = implode(',', array_fill(0, count($idsItens), '?'));
+        $stmtCategoriasItens = $pdo->prepare(
+            "SELECT id, categoria
+             FROM itens
+             WHERE id IN ({$placeholders})"
+        );
+        $stmtCategoriasItens->execute($idsItens);
+
+        foreach ($stmtCategoriasItens->fetchAll() as $rowCategoria) {
+            $categoriaNormalizada = trim((string) ($rowCategoria['categoria'] ?? ''));
+            if (function_exists('mb_strtolower')) {
+                $categoriaNormalizada = mb_strtolower($categoriaNormalizada, 'UTF-8');
+            } else {
+                $categoriaNormalizada = strtolower($categoriaNormalizada);
+            }
+            $categoriasPorItem[(int) $rowCategoria['id']] = $categoriaNormalizada;
+        }
+    }
+
+    foreach ($itensCarrinho as $itemCarrinho) {
+        $itemIdCarrinho = (int) ($itemCarrinho['item_id'] ?? 0);
+        $categoriaItem = (string) ($categoriasPorItem[$itemIdCarrinho] ?? '');
+
+        if ($categoriaItem === 'bolos') {
+            $totalQuantidadeItensPromocao += (float) $itemCarrinho['quantidade'];
+        }
+    }
+
+    $stmtCampanhaBolosGratis = $pdo->query(
+        'SELECT quantidade_para_ganhar
+         FROM campanhas_bolos_gratis
+         ORDER BY id DESC
+         LIMIT 1'
+    );
+    $campanhaBolosGratis = $stmtCampanhaBolosGratis->fetch();
+    $quantidadeParaGanhar = (int) ($campanhaBolosGratis['quantidade_para_ganhar'] ?? 0);
 
     $cashbackRateado = 0.0;
     $ultimoIndiceItem = count($itensCarrinho) - 1;
@@ -232,22 +276,18 @@ try {
         ]);
     }
 
-    $stmtAtualizaCashback = $pdo->prepare(
-        'UPDATE clientes
-         SET saldo_cashback = saldo_cashback - :cashback_usado + :cashback_gerado
-         WHERE id = :id'
-    );
-    $stmtAtualizaCashback->execute([
-        'cashback_usado' => number_format($cashbackUsado, 2, '.', ''),
-        'cashback_gerado' => number_format($cashbackGerado, 2, '.', ''),
-        'id' => $clienteId,
-    ]);
+    $saldoCashbackFinal = round($saldoCashbackDisponivel - $cashbackUsado + $cashbackGerado, 2);
 
-    $saldoCashbackFinal = round($saldoCashbackAnterior - $cashbackUsado + $cashbackGerado, 2);
+    if ($saldoCashbackFinal <= 0) {
+        $bonusExpiraEmFinal = null;
+    } else {
+        $bonusExpiraEmFinal = $bonusExpiraEmAtual;
+    }
 
     $stmtHistoricoCliente = $pdo->prepare(
         'INSERT INTO vendas_clientes (
             comanda_codigo,
+            item_id,
             cliente_nome,
             cliente_whatsapp,
             sabor_bolo,
@@ -256,6 +296,7 @@ try {
             cashback_acumulado
         ) VALUES (
             :comanda_codigo,
+            :item_id,
             :cliente_nome,
             :cliente_whatsapp,
             :sabor_bolo,
@@ -268,6 +309,7 @@ try {
     foreach ($carrinho as $itemCarrinho) {
         $stmtHistoricoCliente->execute([
             'comanda_codigo' => $comandaCodigo,
+            'item_id' => (int) $itemCarrinho['item_id'],
             'cliente_nome' => $cliente['nome'],
             'cliente_whatsapp' => $cliente['whatsapp'],
             'sabor_bolo' => $itemCarrinho['descricao_produto'],
@@ -276,6 +318,66 @@ try {
             'cashback_acumulado' => number_format($saldoCashbackFinal, 2, '.', ''),
         ]);
     }
+
+    $bolosGratisFinal = 0;
+    $fidelidadeQuantidadeFinal = 0.0;
+    $quantidadeBolosPeriodo = 0.0;
+
+    if ($quantidadeParaGanhar > 0) {
+        $stmtQuantidadeBolosPeriodo = $pdo->prepare(
+            "SELECT COALESCE(SUM(vc.quantidade), 0)
+             FROM vendas_clientes vc
+             INNER JOIN itens i
+                ON i.id = vc.item_id
+               AND LOWER(TRIM(COALESCE(i.categoria, ''))) = 'bolos'
+             INNER JOIN campanhas_bolos_gratis cbg
+                ON cbg.id = (SELECT id FROM campanhas_bolos_gratis ORDER BY id DESC LIMIT 1)
+             WHERE vc.cliente_whatsapp = :cliente_whatsapp
+               AND vc.data_compra >= cbg.criado_em"
+        );
+        $stmtQuantidadeBolosPeriodo->execute([
+            'cliente_whatsapp' => $cliente['whatsapp'],
+        ]);
+        $quantidadeBolosPeriodo = (float) $stmtQuantidadeBolosPeriodo->fetchColumn();
+
+        if ($quantidadeBolosPeriodo > 0) {
+            $bolosGratisFinal = (int) floor($quantidadeBolosPeriodo / $quantidadeParaGanhar);
+            $fidelidadeQuantidadeFinal = $quantidadeBolosPeriodo - ($bolosGratisFinal * $quantidadeParaGanhar);
+        }
+    }
+
+    $novosBolosGratis = max($bolosGratisFinal - $bolosGratisAnterior, 0);
+
+    if ($quantidadeParaGanhar > 0) {
+        $faltamParaProximo = $quantidadeParaGanhar - (int) floor($fidelidadeQuantidadeFinal);
+
+        if ($faltamParaProximo <= 0) {
+            $faltamParaProximo = $quantidadeParaGanhar;
+        }
+
+        if ($novosBolosGratis > 0) {
+            $avisoFidelidade =
+                'Campanha ativa: cliente ganhou ' . $novosBolosGratis . ' bolo(s) gratis. ' .
+                'Ja tem ' . rtrim(rtrim(number_format($fidelidadeQuantidadeFinal, 2, ',', '.'), '0'), ',') .
+                ' acumulado(s) e faltam ' . $faltamParaProximo . ' para o proximo premio.';
+        }
+    }
+
+    $stmtAtualizaCashback = $pdo->prepare(
+        'UPDATE clientes
+         SET saldo_cashback = :saldo_cashback,
+             bonus_expira_em = :bonus_expira_em,
+             fidelidade_quantidade_acumulada = :fidelidade_quantidade_acumulada,
+             bolos_gratis_disponiveis = :bolos_gratis_disponiveis
+         WHERE id = :id'
+    );
+    $stmtAtualizaCashback->execute([
+        'saldo_cashback' => number_format($saldoCashbackFinal, 2, '.', ''),
+        'bonus_expira_em' => $bonusExpiraEmFinal,
+        'fidelidade_quantidade_acumulada' => number_format($fidelidadeQuantidadeFinal, 2, '.', ''),
+        'bolos_gratis_disponiveis' => $bolosGratisFinal,
+        'id' => $clienteId,
+    ]);
 
     $pdo->commit();
 } catch (Throwable $e) {
@@ -290,17 +392,20 @@ try {
 
 unset($_SESSION['carrinho_venda']);
 unset($_SESSION['venda_cliente_id']);
-unset($_SESSION['venda_usar_cashback']);
-unset($_SESSION['venda_forma_pagamento_restante']);
 $_SESSION['ultima_venda_cliente'] = [
     'comanda_codigo' => $comandaCodigo,
     'cliente_nome' => $cliente['nome'],
     'cliente_whatsapp' => $cliente['whatsapp'],
     'cashback_usado' => $cashbackUsado,
     'troco_cashback' => $trocoCashback,
-    'saldo_cashback_anterior' => $saldoCashbackAnterior,
+    'saldo_cashback_anterior' => $saldoCashbackDisponivel,
     'saldo_cashback_final' => $saldoCashbackFinal,
     'cashback_gerado' => $cashbackGerado,
+    'bonus_expira_em' => $bonusExpiraEmFinal,
+    'bolos_gratis_anterior' => $bolosGratisAnterior,
+    'bolos_gratis_final' => $bolosGratisFinal,
+    'novos_bolos_gratis' => $novosBolosGratis,
+    'aviso_fidelidade' => $avisoFidelidade,
 ];
 header('Location: comprovante-venda.php?comanda=' . urlencode($comandaCodigo));
 exit;

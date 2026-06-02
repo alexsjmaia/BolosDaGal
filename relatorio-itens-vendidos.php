@@ -54,6 +54,7 @@ if ($dataInicial !== '' || $dataFinal !== '') {
              FROM vendas v
              WHERE v.data_hora_venda >= :data_inicial
                AND v.data_hora_venda < DATE_ADD(:data_final, INTERVAL 1 DAY)
+               AND v.codigo_produto <> \'0\'
              GROUP BY v.codigo_produto, v.descricao_produto
              ORDER BY qtd_vendida DESC, valor_total_venda DESC, v.descricao_produto ASC'
         );
@@ -324,7 +325,7 @@ if ($dataInicial !== '' || $dataFinal !== '') {
                                     <th>Qtd vendida</th>
                                     <th>Valor total do custo</th>
                                     <th>Valor total de venda</th>
-                                    <th>Lucro venda - custo - cashback</th>
+                                    <th>Lucro venda - custo</th>
                                 </tr>
                             </thead>
                             <tbody>

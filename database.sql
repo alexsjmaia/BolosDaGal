@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS itens (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     codigo_produto VARCHAR(50) NOT NULL UNIQUE,
     nome_produto VARCHAR(150) NOT NULL,
+    categoria VARCHAR(100) DEFAULT NULL,
     ncm VARCHAR(20) NOT NULL,
     foto_produto VARCHAR(255) DEFAULT NULL,
     mostrar_catalogo TINYINT(1) NOT NULL DEFAULT 1,
@@ -65,6 +66,9 @@ CREATE TABLE IF NOT EXISTS clientes (
     whatsapp VARCHAR(20) NOT NULL,
     senha_hash VARCHAR(255) DEFAULT NULL,
     saldo_cashback DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    bonus_expira_em DATETIME DEFAULT NULL,
+    fidelidade_quantidade_acumulada DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    bolos_gratis_disponiveis INT UNSIGNED NOT NULL DEFAULT 0,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_clientes_nome (nome),
     UNIQUE KEY uk_clientes_whatsapp (whatsapp)
@@ -73,6 +77,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 CREATE TABLE IF NOT EXISTS vendas_clientes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     comanda_codigo VARCHAR(40) NOT NULL,
+    item_id INT UNSIGNED DEFAULT NULL,
     cliente_nome VARCHAR(150) NOT NULL,
     cliente_whatsapp VARCHAR(20) NOT NULL,
     sabor_bolo VARCHAR(150) NOT NULL,
@@ -88,6 +93,12 @@ CREATE TABLE IF NOT EXISTS vendas_clientes (
 CREATE TABLE IF NOT EXISTS campanhas_cashback (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     percentual_cashback DECIMAL(5,2) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS campanhas_bolos_gratis (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    quantidade_para_ganhar INT UNSIGNED NOT NULL,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

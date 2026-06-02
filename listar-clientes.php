@@ -3,7 +3,9 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/db.php';
 
 $stmt = $pdo->query(
-    'SELECT nome, whatsapp, saldo_cashback
+    'SELECT
+        nome,
+        whatsapp
      FROM clientes
      ORDER BY nome ASC, whatsapp ASC'
 );
@@ -20,15 +22,14 @@ function normalizeWhatsApp(string $whatsapp): string
     return strlen($digits) === 13 ? $digits : '';
 }
 
-function buildWhatsAppTextLink(string $whatsapp, float $saldoCashback): string
+function buildWhatsAppTextLink(string $whatsapp): string
 {
     $normalized = normalizeWhatsApp($whatsapp);
     if ($normalized === '') {
         return '';
     }
 
-    $valor = 'R$ ' . number_format($saldoCashback, 2, ',', '.');
-    $mensagem = "Ei, temos uma ótima noticia! Você tem {$valor} em cashback esperando por você em nossa Loja. Que tal aproveitar para garantir aquele bolo delicioso que você esta de olho? Confira nosso cardápio.";
+    $mensagem = 'Confira nosso cardapio e aproveite nossas promocoes especiais de bolos.';
 
     return 'https://wa.me/' . $normalized . '?text=' . rawurlencode($mensagem);
 }
@@ -150,7 +151,7 @@ function buildWhatsAppTextLink(string $whatsapp, float $saldoCashback): string
     <main class="layout">
         <section class="card">
             <h1>Listar Clientes Cadastrados</h1>
-            <p class="lead">Veja abaixo os clientes cadastrados com WhatsApp e saldo de cashback.</p>
+            <p class="lead">Veja abaixo os clientes cadastrados com WhatsApp.</p>
 
             <div class="actions">
                 <a class="button" href="dashboard.php">Voltar ao menu</a>
@@ -163,14 +164,12 @@ function buildWhatsAppTextLink(string $whatsapp, float $saldoCashback): string
                             <tr>
                                 <th>Nome</th>
                                 <th>WhatsApp</th>
-                                <th>Saldo de Cash back</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($clientes as $cliente): ?>
                                 <?php
-                                $saldo = (float) $cliente['saldo_cashback'];
-                                $whatsLink = buildWhatsAppTextLink((string) $cliente['whatsapp'], $saldo);
+                                $whatsLink = buildWhatsAppTextLink((string) $cliente['whatsapp']);
                                 ?>
                                 <tr>
                                     <td><?= htmlspecialchars($cliente['nome'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -183,7 +182,6 @@ function buildWhatsAppTextLink(string $whatsapp, float $saldoCashback): string
                                             <?= htmlspecialchars($cliente['whatsapp'], ENT_QUOTES, 'UTF-8') ?>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="money">R$ <?= htmlspecialchars(number_format($saldo, 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

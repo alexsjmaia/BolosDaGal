@@ -11,6 +11,7 @@ const ITEM_UPLOAD_DIR = __DIR__ . '/uploads/produtos';
 
 $id = (int) ($_POST['id'] ?? 0);
 $nomeProduto = trim($_POST['nome_produto'] ?? '');
+$categoria = trim($_POST['categoria'] ?? '');
 $ncm = trim($_POST['ncm'] ?? '');
 $precoCusto = str_replace(',', '.', trim($_POST['preco_custo'] ?? ''));
 $precoVenda = str_replace(',', '.', trim($_POST['preco_venda'] ?? ''));
@@ -92,6 +93,7 @@ try {
     $stmt = $pdo->prepare(
         'UPDATE itens
          SET nome_produto = :nome_produto,
+             categoria = :categoria,
              ncm = :ncm,
              foto_produto = :foto_produto,
              mostrar_catalogo = :mostrar_catalogo,
@@ -103,6 +105,7 @@ try {
     $stmt->execute([
         'id' => $id,
         'nome_produto' => $nomeProduto,
+        'categoria' => $categoria !== '' ? $categoria : null,
         'ncm' => $ncm,
         'foto_produto' => $fotoProdutoNova,
         'mostrar_catalogo' => $mostrarCatalogo,

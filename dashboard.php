@@ -155,25 +155,37 @@
                 <span class="menu-number">8</span>
                 <span class="menu-text">Cadastrar Cliente</span>
             </a>
-            <a class="menu-item" href="listar-clientes.php">
+            <a class="menu-item" href="alterar-cliente.php">
                 <span class="menu-number">9</span>
+                <span class="menu-text">Alterar Cliente</span>
+            </a>
+            <a class="menu-item" href="listar-clientes.php">
+                <span class="menu-number">10</span>
                 <span class="menu-text">Listar Clientes</span>
             </a>
             <a class="menu-item" href="relatorio-vendas-clientes.php">
-                <span class="menu-number">10</span>
+                <span class="menu-number">11</span>
                 <span class="menu-text">Relatorio de Vendas por Cliente</span>
             </a>
-            <a class="menu-item" href="campanha-cashback.php">
-                <span class="menu-number">11</span>
-                <span class="menu-text">Campanhas de Cashback</span>
+            <a class="menu-item" href="relatorio-vendas-data.php">
+                <span class="menu-number">12</span>
+                <span class="menu-text">Relatorio de Vendas por Data</span>
             </a>
             <a class="menu-item" href="listar-pedidos-clientes.php">
-                <span class="menu-number">12</span>
+                <span class="menu-number">13</span>
                 <span class="menu-text">Pedidos Feitos</span>
             </a>
             <a class="menu-item" href="catalogo-retaguarda.php">
-                <span class="menu-number">13</span>
+                <span class="menu-number">14</span>
                 <span class="menu-text">Catalogo com Edicao</span>
+            </a>
+            <a class="menu-item" href="campanha-bolos-gratis.php">
+                <span class="menu-number">15</span>
+                <span class="menu-text">Campanha Compre X Ganhe 1</span>
+            </a>
+            <a class="menu-item" href="cadastrar-categoria.php">
+                <span class="menu-number">16</span>
+                <span class="menu-text">Cadastrar Categorias</span>
             </a>
         </section>
 

@@ -15,7 +15,15 @@ if (!isset($_SESSION['cliente_carrinho']) || !is_array($_SESSION['cliente_carrin
 $carrinho = $_SESSION['cliente_carrinho'];
 
 $stmt = $pdo->prepare(
-    'SELECT nome, whatsapp, saldo_cashback
+    'SELECT
+        nome,
+        whatsapp,
+        saldo_cashback,
+        bonus_expira_em,
+        CASE
+            WHEN bonus_expira_em IS NULL OR bonus_expira_em >= NOW() THEN saldo_cashback
+            ELSE 0
+        END AS saldo_cashback_disponivel
      FROM clientes
      WHERE id = :id
      LIMIT 1'
@@ -31,7 +39,7 @@ if (!$cliente) {
 
 $_SESSION['cliente_nome'] = $cliente['nome'];
 $_SESSION['cliente_whatsapp'] = $cliente['whatsapp'];
-$_SESSION['cliente_saldo_cashback'] = (float) $cliente['saldo_cashback'];
+$_SESSION['cliente_saldo_cashback'] = (float) $cliente['saldo_cashback_disponivel'];
 
 $stmtItens = $pdo->query(
     'SELECT
@@ -343,10 +351,6 @@ foreach ($carrinho as $itemId => $quantidade) {
             <h1>Cardapio Bolos da Gal</h1>
             <p class="lead">Bem-vindo, <strong><?= htmlspecialchars((string) $cliente['nome'], ENT_QUOTES, 'UTF-8') ?></strong>.</p>
             <p class="lead">Telefone: <?= htmlspecialchars((string) $cliente['whatsapp'], ENT_QUOTES, 'UTF-8') ?></p>
-
-            <div class="tag">
-                Seu cashback atual: R$ <?= htmlspecialchars(number_format((float) $cliente['saldo_cashback'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?>
-            </div>
 
             <div class="actions">
                 <a class="button" href="cliente-logout.php">Sair</a>

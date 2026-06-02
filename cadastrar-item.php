@@ -11,6 +11,13 @@ unset($_SESSION['item_erro'], $_SESSION['item_sucesso'], $_SESSION['item_dados']
 $stmt = $pdo->query('SELECT codigo_produto FROM itens');
 $codigosExistentes = $stmt->fetchAll(PDO::FETCH_COLUMN);
 $podeCarregarFoto = currentUserCanUploadPhotos();
+$stmtCategorias = $pdo->query(
+    'SELECT nome
+     FROM categorias
+     WHERE ativo = 1
+     ORDER BY nome ASC, id ASC'
+);
+$categorias = $stmtCategorias->fetchAll(PDO::FETCH_COLUMN);
 $codigosNumericos = [];
 
 foreach ($codigosExistentes as $codigoExistente) {
@@ -179,6 +186,19 @@ $codigoSugerido = $dados['codigo_produto'] ?? (string) $proximoCodigoDisponivel;
                 <div>
                     <label for="nome_produto">Nome do produto</label>
                     <input type="text" id="nome_produto" name="nome_produto" value="<?= htmlspecialchars($dados['nome_produto'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                </div>
+
+                <div>
+                    <label for="categoria">Categoria</label>
+                    <?php $categoriaSelecionada = (string) ($dados['categoria'] ?? ''); ?>
+                    <select id="categoria" name="categoria">
+                        <option value="">Sem categoria</option>
+                        <?php foreach ($categorias as $categoriaNome): ?>
+                            <option value="<?= htmlspecialchars((string) $categoriaNome, ENT_QUOTES, 'UTF-8') ?>" <?= $categoriaSelecionada === (string) $categoriaNome ? 'selected' : '' ?>>
+                                <?= htmlspecialchars((string) $categoriaNome, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>

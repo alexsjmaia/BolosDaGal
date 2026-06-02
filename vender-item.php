@@ -5,8 +5,6 @@ require __DIR__ . '/db.php';
 $erro = $_SESSION['venda_erro'] ?? '';
 $sucesso = $_SESSION['venda_sucesso'] ?? '';
 $clienteSelecionadoId = (int) ($_SESSION['venda_cliente_id'] ?? 0);
-$usarCashbackPadrao = (($_SESSION['venda_usar_cashback'] ?? '0') === '1');
-$formaPagamentoRestantePadrao = $_SESSION['venda_forma_pagamento_restante'] ?? '';
 unset($_SESSION['venda_erro'], $_SESSION['venda_sucesso']);
 
 $stmt = $pdo->query(
@@ -17,7 +15,7 @@ $stmt = $pdo->query(
 $itens = $stmt->fetchAll();
 
 $stmtClientes = $pdo->query(
-    'SELECT id, nome, whatsapp, saldo_cashback
+    'SELECT id, nome, whatsapp, bolos_gratis_disponiveis
      FROM clientes
      ORDER BY nome ASC, whatsapp ASC'
 );
@@ -335,17 +333,10 @@ foreach ($carrinho as $itemCarrinho) {
                                         <option value="">Selecione um cliente</option>
                                         <?php foreach ($clientes as $cliente): ?>
                                             <option value="<?= (int) $cliente['id'] ?>" <?= $clienteSelecionadoId === (int) $cliente['id'] ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($cliente['nome'] . ' - ' . $cliente['whatsapp'] . ' - Saldo R$ ' . number_format((float) $cliente['saldo_cashback'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($cliente['nome'] . ' - ' . $cliente['whatsapp'] . ' - Gratis: ' . (int) $cliente['bolos_gratis_disponiveis'], ENT_QUOTES, 'UTF-8') ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                </div>
-
-                                <div>
-                                    <label>
-                                        <input type="checkbox" id="usar_cashback" name="usar_cashback" value="1" <?= $usarCashbackPadrao ? 'checked' : '' ?>>
-                                        Usar saldo de cashback nesta venda
-                                    </label>
                                 </div>
 
                                 <div>
@@ -356,18 +347,6 @@ foreach ($carrinho as $itemCarrinho) {
                                         <option value="Pix">Pix</option>
                                         <option value="Cartao de credito">Cartao de credito</option>
                                         <option value="Cartao de debito">Cartao de debito</option>
-                                        <option value="Cashback">Cashback</option>
-                                    </select>
-                                </div>
-
-                                <div id="restante_fields" class="payment-extra">
-                                    <label for="forma_pagamento_restante">Forma para pagar o restante</label>
-                                    <select id="forma_pagamento_restante" name="forma_pagamento_restante">
-                                        <option value="">Selecione a forma para o restante</option>
-                                        <option value="Dinheiro" <?= $formaPagamentoRestantePadrao === 'Dinheiro' ? 'selected' : '' ?>>Dinheiro</option>
-                                        <option value="Pix" <?= $formaPagamentoRestantePadrao === 'Pix' ? 'selected' : '' ?>>Pix</option>
-                                        <option value="Cartao de credito" <?= $formaPagamentoRestantePadrao === 'Cartao de credito' ? 'selected' : '' ?>>Cartao de credito</option>
-                                        <option value="Cartao de debito" <?= $formaPagamentoRestantePadrao === 'Cartao de debito' ? 'selected' : '' ?>>Cartao de debito</option>
                                     </select>
                                 </div>
 
@@ -385,22 +364,6 @@ foreach ($carrinho as $itemCarrinho) {
                                     Troco: R$ <span id="valor_troco_preview">0,00</span>
                                 </div>
 
-                                <div class="troco-box">
-                                    Saldo cashback disponivel: R$ <span id="cashback_disponivel_preview">0,00</span>
-                                </div>
-
-                                <div class="troco-box">
-                                    Cashback usado: R$ <span id="cashback_usado_preview">0,00</span>
-                                </div>
-
-                                <div class="troco-box">
-                                    Restante para pagamento: R$ <span id="restante_pagamento_preview">0,00</span>
-                                </div>
-
-                                <div id="troco_cashback_box" class="troco-box payment-extra">
-                                    Troco do cashback: R$ <span id="troco_cashback_preview">0,00</span>
-                                </div>
-
                                 <div>
                                     <label for="observacao">Observacao da comanda</label>
                                     <textarea id="observacao" name="observacao" placeholder="Campo opcional"></textarea>
@@ -416,7 +379,7 @@ foreach ($carrinho as $itemCarrinho) {
                     <?php endif; ?>
 
                     <?php if (!$clientes): ?>
-                        <p class="info">Cadastre pelo menos um cliente antes de finalizar uma venda com cashback.</p>
+                        <p class="info">Cadastre pelo menos um cliente antes de finalizar uma venda.</p>
                     <?php endif; ?>
                 </section>
             </div>
@@ -426,40 +389,18 @@ foreach ($carrinho as $itemCarrinho) {
     </main>
 
     <script>
-        const clienteId = document.getElementById('cliente_id');
         const formaPagamento = document.getElementById('forma_pagamento');
-        const formaPagamentoRestante = document.getElementById('forma_pagamento_restante');
-        const restanteFields = document.getElementById('restante_fields');
-        const usarCashback = document.getElementById('usar_cashback');
         const valorRecebido = document.getElementById('valor_recebido');
         const dinheiroFields = document.getElementById('dinheiro_fields');
         const trocoBox = document.getElementById('troco_box');
-        const trocoCashbackBox = document.getElementById('troco_cashback_box');
-        const cashbackDisponivelPreview = document.getElementById('cashback_disponivel_preview');
-        const cashbackUsadoPreview = document.getElementById('cashback_usado_preview');
-        const restantePagamentoPreview = document.getElementById('restante_pagamento_preview');
-        const trocoCashbackPreview = document.getElementById('troco_cashback_preview');
         const valorTrocoPreview = document.getElementById('valor_troco_preview');
         const totalComanda = <?= json_encode(number_format($totalGeral, 2, '.', '')) ?>;
-        const saldoPorCliente = <?= json_encode(array_reduce($clientes, function (array $carry, array $cliente): array {
-            $carry[(int) $cliente['id']] = round((float) $cliente['saldo_cashback'], 2);
-            return $carry;
-        }, [])) ?>;
 
         if (
-            !clienteId ||
             !formaPagamento ||
-            !formaPagamentoRestante ||
-            !restanteFields ||
-            !usarCashback ||
             !valorRecebido ||
             !dinheiroFields ||
             !trocoBox ||
-            !trocoCashbackBox ||
-            !cashbackDisponivelPreview ||
-            !cashbackUsadoPreview ||
-            !restantePagamentoPreview ||
-            !trocoCashbackPreview ||
             !valorTrocoPreview
         ) {
         } else {
@@ -478,56 +419,23 @@ foreach ($carrinho as $itemCarrinho) {
                 });
             }
 
-            function getSaldoClienteSelecionado() {
-                const id = parseInt(clienteId.value, 10);
-                if (!id || !Object.prototype.hasOwnProperty.call(saldoPorCliente, id)) {
-                    return 0;
-                }
-
-                return Number(saldoPorCliente[id]) || 0;
-            }
-
             function updatePagamento() {
                 const isDinheiro = formaPagamento.value === 'Dinheiro';
-                const isCashbackPrincipal = formaPagamento.value === 'Cashback';
-                const saldoCliente = getSaldoClienteSelecionado();
-                const aplicarCashback = usarCashback.checked || isCashbackPrincipal;
-                const cashbackUsado = aplicarCashback ? Math.min(saldoCliente, parseFloat(totalComanda)) : 0;
-                const restantePagamento = Math.max(parseFloat(totalComanda) - cashbackUsado, 0);
-                const dinheiroNoRestante = isCashbackPrincipal && formaPagamentoRestante.value === 'Dinheiro' && restantePagamento > 0;
-                const pagamentoDinheiroAtivo = isDinheiro || dinheiroNoRestante;
+                dinheiroFields.style.display = isDinheiro ? 'block' : 'none';
+                trocoBox.style.display = isDinheiro ? 'block' : 'none';
 
-                restanteFields.style.display = isCashbackPrincipal ? 'block' : 'none';
-                if (!isCashbackPrincipal) {
-                    formaPagamentoRestante.value = '';
-                }
-
-                dinheiroFields.style.display = pagamentoDinheiroAtivo ? 'block' : 'none';
-                trocoBox.style.display = pagamentoDinheiroAtivo ? 'block' : 'none';
-
-                cashbackDisponivelPreview.textContent = formatCurrency(saldoCliente);
-                cashbackUsadoPreview.textContent = formatCurrency(cashbackUsado);
-                restantePagamentoPreview.textContent = formatCurrency(restantePagamento);
-
-                const trocoCashback = Math.max(saldoCliente - cashbackUsado, 0);
-                trocoCashbackBox.style.display = trocoCashback > 0 ? 'block' : 'none';
-                trocoCashbackPreview.textContent = formatCurrency(trocoCashback);
-
-                if (!pagamentoDinheiroAtivo) {
+                if (!isDinheiro) {
                     valorRecebido.value = '';
                     valorTrocoPreview.textContent = '0,00';
                     return;
                 }
 
                 const recebido = parseCurrency(valorRecebido.value);
-                const troco = Math.max(recebido - restantePagamento, 0);
+                const troco = Math.max(recebido - parseFloat(totalComanda), 0);
                 valorTrocoPreview.textContent = formatCurrency(troco);
             }
 
-            clienteId.addEventListener('change', updatePagamento);
-            usarCashback.addEventListener('change', updatePagamento);
             formaPagamento.addEventListener('change', updatePagamento);
-            formaPagamentoRestante.addEventListener('change', updatePagamento);
             valorRecebido.addEventListener('input', updatePagamento);
             updatePagamento();
         }

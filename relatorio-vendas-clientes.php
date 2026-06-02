@@ -34,8 +34,7 @@ if ($clienteId > 0) {
                 cliente_whatsapp,
                 sabor_bolo,
                 quantidade,
-                data_compra,
-                cashback_acumulado
+                data_compra
              FROM vendas_clientes
              WHERE cliente_whatsapp = :cliente_whatsapp
              ORDER BY data_compra DESC, id DESC'
@@ -47,12 +46,10 @@ if ($clienteId > 0) {
 
 $totais = [
     'quantidade' => 0.0,
-    'cashback' => 0.0,
 ];
 
 foreach ($registros as $registro) {
     $totais['quantidade'] += (float) $registro['quantidade'];
-    $totais['cashback'] += (float) $registro['cashback_acumulado'];
 }
 ?>
 <!DOCTYPE html>
@@ -283,7 +280,6 @@ foreach ($registros as $registro) {
                                 <th>Sabor do bolo</th>
                                 <th>Quantidade</th>
                                 <th>Data da compra</th>
-                                <th>Valor do cashback acumulado</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -294,7 +290,6 @@ foreach ($registros as $registro) {
                                     <td><?= htmlspecialchars($registro['sabor_bolo'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars(number_format((float) $registro['quantidade'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars(date('d/m/Y H:i:s', strtotime($registro['data_compra'])), ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td class="money">R$ <?= htmlspecialchars(number_format((float) $registro['cashback_acumulado'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -303,7 +298,6 @@ foreach ($registros as $registro) {
                                 <td colspan="3">Totais gerais</td>
                                 <td><?= htmlspecialchars(number_format($totais['quantidade'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td></td>
-                                <td class="money">R$ <?= htmlspecialchars(number_format($totais['cashback'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
                             </tr>
                         </tfoot>
                     </table>

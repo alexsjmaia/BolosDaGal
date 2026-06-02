@@ -52,6 +52,9 @@ try {
             whatsapp VARCHAR(20) NOT NULL,
             senha_hash VARCHAR(255) DEFAULT NULL,
             saldo_cashback DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            bonus_expira_em DATETIME DEFAULT NULL,
+            fidelidade_quantidade_acumulada DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            bolos_gratis_disponiveis INT UNSIGNED NOT NULL DEFAULT 0,
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_clientes_nome (nome),
             UNIQUE KEY uk_clientes_whatsapp (whatsapp)
@@ -62,6 +65,7 @@ try {
         'CREATE TABLE IF NOT EXISTS vendas_clientes (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             comanda_codigo VARCHAR(40) NOT NULL,
+            item_id INT UNSIGNED DEFAULT NULL,
             cliente_nome VARCHAR(150) NOT NULL,
             cliente_whatsapp VARCHAR(20) NOT NULL,
             sabor_bolo VARCHAR(150) NOT NULL,
@@ -79,6 +83,14 @@ try {
         'CREATE TABLE IF NOT EXISTS campanhas_cashback (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             percentual_cashback DECIMAL(5,2) NOT NULL,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )'
+    );
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS campanhas_bolos_gratis (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            quantidade_para_ganhar INT UNSIGNED NOT NULL,
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )'
     );
@@ -184,6 +196,100 @@ try {
         );
     }
 
+    $stmtColunaBonusExpiraEm = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = :schema
+           AND TABLE_NAME = :tabela
+           AND COLUMN_NAME = :coluna'
+    );
+    $stmtColunaBonusExpiraEm->execute([
+        'schema' => $config['db_name'],
+        'tabela' => 'clientes',
+        'coluna' => 'bonus_expira_em',
+    ]);
+
+    if ((int) $stmtColunaBonusExpiraEm->fetchColumn() === 0) {
+        $pdo->exec(
+            'ALTER TABLE clientes
+             ADD COLUMN bonus_expira_em DATETIME DEFAULT NULL
+            AFTER saldo_cashback'
+        );
+    }
+
+    $stmtColunaFidelidadeAcumulada = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = :schema
+           AND TABLE_NAME = :tabela
+           AND COLUMN_NAME = :coluna'
+    );
+    $stmtColunaFidelidadeAcumulada->execute([
+        'schema' => $config['db_name'],
+        'tabela' => 'clientes',
+        'coluna' => 'fidelidade_quantidade_acumulada',
+    ]);
+
+    if ((int) $stmtColunaFidelidadeAcumulada->fetchColumn() === 0) {
+        $pdo->exec(
+            'ALTER TABLE clientes
+             ADD COLUMN fidelidade_quantidade_acumulada DECIMAL(10,2) NOT NULL DEFAULT 0.00
+            AFTER bonus_expira_em'
+        );
+    }
+
+    $stmtColunaBolosGratis = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = :schema
+           AND TABLE_NAME = :tabela
+           AND COLUMN_NAME = :coluna'
+    );
+    $stmtColunaBolosGratis->execute([
+        'schema' => $config['db_name'],
+        'tabela' => 'clientes',
+        'coluna' => 'bolos_gratis_disponiveis',
+    ]);
+
+    if ((int) $stmtColunaBolosGratis->fetchColumn() === 0) {
+        $pdo->exec(
+            'ALTER TABLE clientes
+             ADD COLUMN bolos_gratis_disponiveis INT UNSIGNED NOT NULL DEFAULT 0
+            AFTER fidelidade_quantidade_acumulada'
+        );
+    }
+
+    $stmtColunaItemIdVendasClientes = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = :schema
+           AND TABLE_NAME = :tabela
+           AND COLUMN_NAME = :coluna'
+    );
+    $stmtColunaItemIdVendasClientes->execute([
+        'schema' => $config['db_name'],
+        'tabela' => 'vendas_clientes',
+        'coluna' => 'item_id',
+    ]);
+
+    if ((int) $stmtColunaItemIdVendasClientes->fetchColumn() === 0) {
+        $pdo->exec(
+            'ALTER TABLE vendas_clientes
+             ADD COLUMN item_id INT UNSIGNED DEFAULT NULL
+             AFTER comanda_codigo'
+        );
+    }
+
+    $pdo->exec(
+        'UPDATE vendas_clientes vc
+         INNER JOIN vendas v
+            ON v.comanda_codigo = vc.comanda_codigo
+           AND v.descricao_produto = vc.sabor_bolo
+           AND ABS(v.quantidade - vc.quantidade) < 0.0001
+         SET vc.item_id = v.item_id
+         WHERE vc.item_id IS NULL'
+    );
+
     $stmtColunaFotoItem = $pdo->prepare(
         'SELECT COUNT(*)
          FROM INFORMATION_SCHEMA.COLUMNS
@@ -222,7 +328,28 @@ try {
         $pdo->exec(
             'ALTER TABLE itens
              ADD COLUMN mostrar_catalogo TINYINT(1) NOT NULL DEFAULT 1
-             AFTER foto_produto'
+            AFTER foto_produto'
+        );
+    }
+
+    $stmtColunaCategoriaItem = $pdo->prepare(
+        'SELECT COUNT(*)
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = :schema
+           AND TABLE_NAME = :tabela
+           AND COLUMN_NAME = :coluna'
+    );
+    $stmtColunaCategoriaItem->execute([
+        'schema' => $config['db_name'],
+        'tabela' => 'itens',
+        'coluna' => 'categoria',
+    ]);
+
+    if ((int) $stmtColunaCategoriaItem->fetchColumn() === 0) {
+        $pdo->exec(
+            'ALTER TABLE itens
+             ADD COLUMN categoria VARCHAR(100) DEFAULT NULL
+             AFTER nome_produto'
         );
     }
 } catch (PDOException $e) {
